@@ -6,11 +6,16 @@
 
 package com.nononsenseapps.filepicker;
 
+import android.os.Bundle;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.v7.util.SortedList;
 import android.support.v7.widget.RecyclerView;
 import android.view.ViewGroup;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 /**
  * A simple adapter which also inserts a header item ".." to handle going up to the parent folder.
@@ -20,14 +25,43 @@ public class FileItemAdapter<T> extends RecyclerView.Adapter<RecyclerView.ViewHo
 
     protected final LogicHandler<T> mLogic;
     protected SortedList<T> mList = null;
+    private ArrayList<Integer> mSelected;
 
     public FileItemAdapter(@NonNull LogicHandler<T> logic) {
         this.mLogic = logic;
+        mSelected = new ArrayList<>();
     }
 
     public void setList(@Nullable SortedList<T> list) {
         mList = list;
         notifyDataSetChanged();
+    }
+
+    public void toggleSelected(Integer e) {
+        final boolean newState = !mSelected.contains(e);
+        if (newState) {
+            mSelected.add(e);
+        } else {
+            mSelected.remove(e);
+        }
+        notifyDataSetChanged();
+    }
+
+    public void clearSelected() {
+        mSelected.clear();
+        notifyDataSetChanged();
+    }
+
+    public int getSelectedCount() {
+        return mSelected.size();
+    }
+
+    public List<Integer> getSelectedItems(){
+        return Collections.unmodifiableList(mSelected);
+    }
+
+    public boolean isSelected(Integer e){
+        return mSelected.contains(e);
     }
 
     @Override

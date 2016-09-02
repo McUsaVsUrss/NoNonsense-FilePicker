@@ -18,7 +18,12 @@ import android.support.v7.util.SortedList;
 import android.support.v7.widget.util.SortedListAdapterCallback;
 import android.widget.Toast;
 
+import com.afollestad.materialcab.MaterialCab;
+
+import org.apache.commons.io.FileUtils;
+
 import java.io.File;
+import java.text.SimpleDateFormat;
 
 /**
  * An implementation of the picker which allows you to select a file from the internal/external
@@ -31,6 +36,16 @@ public class FilePickerFragment extends AbstractFilePickerFragment<File> {
     private File mRequestedPath = null;
 
     public FilePickerFragment() {
+    }
+
+    @Override
+    public MaterialCab createMaterialCab() {
+        return null;
+    }
+
+    @Override
+    public void resetMaterialCab(MaterialCab cab) {
+
     }
 
     /**
@@ -122,6 +137,13 @@ public class FilePickerFragment extends AbstractFilePickerFragment<File> {
     @Override
     public boolean isDir(@NonNull final File path) {
         return path.isDirectory();
+    }
+
+    @Override
+    public String additionalInfo(@NonNull File path) {
+        SimpleDateFormat format = new SimpleDateFormat("MMM dd, yyyy  hh:mm a");
+        String date = format.format(path.lastModified());
+        return isDir(path) ? "Directory" : (FileUtils.byteCountToDisplaySize(path.length()) + " - " + date);
     }
 
     /**

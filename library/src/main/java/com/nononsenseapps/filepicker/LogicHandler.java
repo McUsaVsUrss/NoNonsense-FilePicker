@@ -30,6 +30,13 @@ public interface LogicHandler<T> {
     boolean isDir(@NonNull final T path);
 
     /**
+     * Additional File infos to display on the second line
+     *
+     * @param path
+     */
+    String additionalInfo(@NonNull final T path);
+
+    /**
      * @param path
      * @return filename of path
      */

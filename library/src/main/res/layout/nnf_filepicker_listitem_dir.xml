@@ -1,44 +1,46 @@
 <?xml version="1.0" encoding="utf-8"?>
 
-<!--
-  ~ This Source Code Form is subject to the terms of the Mozilla Public
-  ~ License, v. 2.0. If a copy of the MPL was not distributed with this
-  ~ file, You can obtain one at http://mozilla.org/MPL/2.0/.
-  -->
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools"
-    android:id="@+id/nnf_item_container"
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="?android:listPreferredItemHeight"
-    android:background="?selectableItemBackground"
-    android:focusable="true"
-    android:minHeight="?android:listPreferredItemHeight"
-    android:nextFocusLeft="@+id/nnf_button_cancel"
-    android:nextFocusRight="@+id/nnf_button_ok"
-    android:orientation="horizontal">
+    android:layout_height="wrap_content"
+    android:gravity="center_vertical|start"
+    android:minHeight="72dp"
+    android:paddingStart="16dp"
+    android:paddingEnd="16dp"
+    android:paddingLeft="16dp"
+    android:paddingRight="16dp"
+    android:background="?list_selector"
+    android:focusable="true">
 
-    <!--suppress AndroidDomInspection -->
     <ImageView
-        android:id="@+id/item_icon"
-        android:layout_width="?android:listPreferredItemHeight"
-        android:layout_height="?android:listPreferredItemHeight"
-        android:adjustViewBounds="true"
-        android:scaleType="center"
+        android:id="@android:id/icon"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
         android:src="@drawable/nnf_ic_folder_black_48dp"
-        android:tint="?attr/nnf_dir_icon_color"
-        android:visibility="visible"
-        tools:ignore="ContentDescription" />
+        android:tint="?attr/nnf_dir_icon_color"/>
 
     <TextView
         android:id="@android:id/text1"
-        style="?android:textAppearanceLarge"
-        android:layout_width="0dp"
-        android:layout_height="match_parent"
-        android:layout_weight="1"
-        android:ellipsize="end"
-        android:gravity="center_vertical"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
         android:maxLines="1"
-        android:padding="8dp"
-        android:singleLine="true"
-        android:text="@string/nnf_name" />
-</LinearLayout>
+        android:textSize="15sp"
+        android:ellipsize="end"
+        android:paddingStart="56dp"
+        android:paddingLeft="56dp"
+        android:text="FILE NAME"/>
+
+    <TextView
+        android:id="@android:id/text2"
+        android:layout_height="wrap_content"
+        android:layout_width="wrap_content"
+        android:layout_alignBottom="@android:id/icon"
+        android:maxLines="1"
+        android:textSize="14sp"
+        android:enabled="false"
+        android:ellipsize="end"
+        android:paddingStart="56dp"
+        android:paddingLeft="56dp"
+        android:text=""/>
+
+</RelativeLayout>

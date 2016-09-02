@@ -17,6 +17,7 @@ import android.support.annotation.Nullable;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.LoaderManager;
 import android.support.v4.content.Loader;
+import android.support.v7.app.ActionBar;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.util.SortedList;
 import android.support.v7.widget.LinearLayoutManager;
@@ -35,6 +36,9 @@ import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.afollestad.materialcab.MaterialCab;
+
+import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -51,7 +55,7 @@ import static com.nononsenseapps.filepicker.Utils.appendPath;
  */
 public abstract class AbstractFilePickerFragment<T> extends Fragment
         implements LoaderManager.LoaderCallbacks<SortedList<T>>,
-        NewItemFragment.OnNewFolderListener, LogicHandler<T> {
+        NewItemFragment.OnNewFolderListener, LogicHandler<T>, MaterialCab.Callback {
 
     // The different preset modes of operation. This impacts the behaviour
     // and possible actions in the UI.
@@ -73,8 +77,8 @@ public abstract class AbstractFilePickerFragment<T> extends Fragment
     public static final String KEY_SINGLE_CLICK = "KEY_SINGLE_CLICK";
     // Used for saving state.
     protected static final String KEY_CURRENT_PATH = "KEY_CURRENT_PATH";
-    protected final HashSet<T> mCheckedItems;
-    protected final HashSet<CheckableViewHolder> mCheckedVisibleViewHolders;
+    //protected final HashSet<T> mCheckedItems;
+    //protected final HashSet<CheckableViewHolder> mCheckedVisibleViewHolders;
     protected int mode = MODE_FILE;
     protected T mCurrentPath = null;
     protected boolean allowCreateDir = false;
@@ -93,15 +97,15 @@ public abstract class AbstractFilePickerFragment<T> extends Fragment
     protected boolean isLoading = false;
     private View mNewFileButtonContainer = null;
     private View mRegularButtonContainer = null;
+    protected boolean startOnActivityCreation = true;
+
+    protected MaterialCab mCab;
 
     /**
      * Mandatory empty constructor for the fragment manager to instantiate the
      * fragment (e.g. upon screen orientation changes).
      */
     public AbstractFilePickerFragment() {
-        mCheckedItems = new HashSet<>();
-        mCheckedVisibleViewHolders = new HashSet<>();
-
         // Retain this fragment across configuration changes, to allow
         // asynctasks and such to be used with ease.
         setRetainInstance(true);
@@ -160,15 +164,13 @@ public abstract class AbstractFilePickerFragment<T> extends Fragment
     }
 
     @Override
-    public View onCreateView(LayoutInflater inflater, ViewGroup container,
-                             Bundle savedInstanceState) {
+    public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         final View view = inflater.inflate(R.layout.nnf_fragment_filepicker, container, false);
 
-        Toolbar toolbar = (Toolbar) view.findViewById(R.id.nnf_picker_toolbar);
+        /*ActionBar toolbar = ((AppCompatActivity) getActivity()).getSupportActionBar();
         if (toolbar != null) {
             setupToolbar(toolbar);
-        }
-
+        }*/
         recyclerView = (RecyclerView) view.findViewById(android.R.id.list);
         // improve performance if you know that changes in content
         // do not change the size of the RecyclerView
@@ -181,6 +183,10 @@ public abstract class AbstractFilePickerFragment<T> extends Fragment
         // Set adapter
         mAdapter = new FileItemAdapter<>(this);
         recyclerView.setAdapter(mAdapter);
+
+        if (savedInstanceState != null) {
+            mCab = MaterialCab.restoreState(savedInstanceState, (AppCompatActivity) getContext(), this);
+        }
 
         view.findViewById(R.id.nnf_button_cancel)
                 .setOnClickListener(new View.OnClickListener() {
@@ -226,14 +232,44 @@ public abstract class AbstractFilePickerFragment<T> extends Fragment
             }
         });
 
-        mCurrentDirView = (TextView) view.findViewById(R.id.nnf_current_dir);
-        // Restore state
+        /*mCurrentDirView = (TextView) view.findViewById(R.id.nnf_current_dir);
         if (mCurrentPath != null && mCurrentDirView != null) {
             mCurrentDirView.setText(getFullPath(mCurrentPath));
-        }
+        }*/
 
         return view;
     }
+
+    @Override
+    public boolean onCabCreated(MaterialCab cab, Menu menu) {
+        // Makes the icons in the overflow menu visible
+        if (menu.getClass().getSimpleName().equals("MenuBuilder")) {
+            try {
+                Field field = menu.getClass().getDeclaredField("mOptionalIconsVisible");
+                field.setAccessible(true);
+                field.setBoolean(menu, true);
+            } catch (Exception ignored) {
+                ignored.printStackTrace();
+            }
+        }
+        return true; // allow creation
+    }
+
+
+    @Override
+    public boolean onCabItemClicked(MenuItem menuItem) {
+        return false;
+    }
+
+    @Override
+    public boolean onCabFinished(MaterialCab cab) {
+        mAdapter.clearSelected();
+        return true;
+    }
+
+    public abstract MaterialCab createMaterialCab();
+
+    public abstract void resetMaterialCab(MaterialCab cab);
 
     /**
      * Checks if a divider drawable has been defined in the current theme. If it has, will apply
@@ -279,11 +315,9 @@ public abstract class AbstractFilePickerFragment<T> extends Fragment
             mToast.show();
             return;
         }*/
-        if ((allowMultiple || mode == MODE_FILE) &&
-                (mCheckedItems.isEmpty() || getFirstCheckedItem() == null)) {
+        if ((allowMultiple || mode == MODE_FILE) && (/*mCheckedItems.isEmpty() || */getFirstCheckedItem() == null)) {
             if (mToast == null) {
-                mToast = Toast.makeText(getActivity(), R.string.nnf_select_something_first,
-                        Toast.LENGTH_SHORT);
+                mToast = Toast.makeText(getActivity(), R.string.nnf_select_something_first, Toast.LENGTH_SHORT);
             }
             mToast.show();
             return;
@@ -301,16 +335,16 @@ public abstract class AbstractFilePickerFragment<T> extends Fragment
                 result = toUri(getPath(appendPath(getFullPath(mCurrentPath), filename)));
             }
             mListener.onFilePicked(result);
-        } else if (allowMultiple) {
+        }/* else if (allowMultiple) {
             mListener.onFilesPicked(toUri(mCheckedItems));
-        } else if (mode == MODE_FILE) {
+        }*/ else if (mode == MODE_FILE) {
             //noinspection ConstantConditions
             mListener.onFilePicked(toUri(getFirstCheckedItem()));
         } else if (mode == MODE_DIR) {
             mListener.onFilePicked(toUri(mCurrentPath));
         } else {
             // single FILE OR DIR
-            if (mCheckedItems.isEmpty()) {
+            if (/*mCheckedItems.isEmpty()*/false) {
                 mListener.onFilePicked(toUri(mCurrentPath));
             } else {
                 mListener.onFilePicked(toUri(getFirstCheckedItem()));
@@ -327,24 +361,13 @@ public abstract class AbstractFilePickerFragment<T> extends Fragment
         return mEditTextFileName.getText().toString();
     }
 
-    /**
-     * Configure the toolbar anyway you like here. Default is to set it as the activity's
-     * main action bar. Override if you already provide an action bar.
-     * Not called if no toolbar was found.
-     *
-     * @param toolbar from layout with id "picker_toolbar"
-     */
-    protected void setupToolbar(@NonNull Toolbar toolbar) {
-        ((AppCompatActivity) getActivity()).setSupportActionBar(toolbar);
-    }
-
     public
     @Nullable
     T getFirstCheckedItem() {
         //noinspection LoopStatementThatDoesntLoop
-        for (T file : mCheckedItems) {
+        /*for (T file : mCheckedItems) {
             return file;
-        }
+        }*/
         return null;
     }
 
@@ -361,8 +384,7 @@ public abstract class AbstractFilePickerFragment<T> extends Fragment
     public boolean isCheckable(@NonNull final T data) {
         final boolean checkable;
         if (isDir(data)) {
-            checkable = ((mode == MODE_DIR && allowMultiple) ||
-                    (mode == MODE_FILE_AND_DIR && allowMultiple));
+            checkable = ((mode == MODE_DIR && allowMultiple) || (mode == MODE_FILE_AND_DIR && allowMultiple));
         } else {
             // File
             checkable = (mode == MODE_FILE || mode == MODE_FILE_AND_DIR || allowExistingFile);
@@ -452,7 +474,10 @@ public abstract class AbstractFilePickerFragment<T> extends Fragment
         if (mCurrentPath == null) {
             mCurrentPath = getRoot();
         }
-        refresh(mCurrentPath);
+
+        if(startOnActivityCreation){
+            refresh(mCurrentPath);
+        }
     }
 
     /**
@@ -465,6 +490,7 @@ public abstract class AbstractFilePickerFragment<T> extends Fragment
 
         if (!nf && singleClick) {
             getActivity().findViewById(R.id.nnf_button_ok).setVisibility(View.GONE);
+            getActivity().findViewById(R.id.nnf_button_cancel).setVisibility(View.GONE);
         }
     }
 
@@ -520,8 +546,7 @@ public abstract class AbstractFilePickerFragment<T> extends Fragment
         if (hasPermission(nextPath)) {
             mCurrentPath = nextPath;
             isLoading = true;
-            getLoaderManager()
-                    .restartLoader(0, null, AbstractFilePickerFragment.this);
+            getLoaderManager().restartLoader(0, null, AbstractFilePickerFragment.this);
         } else {
             handlePermission(nextPath);
         }
@@ -569,11 +594,10 @@ public abstract class AbstractFilePickerFragment<T> extends Fragment
      * @param data   The data generated by the Loader.
      */
     @Override
-    public void onLoadFinished(final Loader<SortedList<T>> loader,
-                               final SortedList<T> data) {
+    public void onLoadFinished(final Loader<SortedList<T>> loader, final SortedList<T> data) {
         isLoading = false;
-        mCheckedItems.clear();
-        mCheckedVisibleViewHolders.clear();
+        /*mCheckedItems.clear();
+        mCheckedVisibleViewHolders.clear();*/
         mFiles = data;
         mAdapter.setList(data);
         if (mCurrentDirView != null) {
@@ -625,17 +649,14 @@ public abstract class AbstractFilePickerFragment<T> extends Fragment
         View v;
         switch (viewType) {
             case LogicHandler.VIEWTYPE_HEADER:
-                v = LayoutInflater.from(getActivity()).inflate(R.layout.nnf_filepicker_listitem_dir,
-                        parent, false);
+                v = LayoutInflater.from(getActivity()).inflate(R.layout.nnf_filepicker_listitem_dir, parent, false);
                 return new HeaderViewHolder(v);
-            case LogicHandler.VIEWTYPE_CHECKABLE:
-                v = LayoutInflater.from(getActivity()).inflate(R.layout.nnf_filepicker_listitem_checkable,
-                        parent, false);
-                return new CheckableViewHolder(v);
+            /*case LogicHandler.VIEWTYPE_CHECKABLE:
+                v = LayoutInflater.from(getActivity()).inflate(R.layout.nnf_filepicker_listitem_checkable, parent, false);
+                return new CheckableViewHolder(v);*/
             case LogicHandler.VIEWTYPE_DIR:
             default:
-                v = LayoutInflater.from(getActivity()).inflate(R.layout.nnf_filepicker_listitem_dir,
-                        parent, false);
+                v = LayoutInflater.from(getActivity()).inflate(R.layout.nnf_filepicker_listitem_dir, parent, false);
                 return new DirViewHolder(v);
         }
     }
@@ -648,10 +669,12 @@ public abstract class AbstractFilePickerFragment<T> extends Fragment
     @Override
     public void onBindViewHolder(@NonNull DirViewHolder vh, int position, @NonNull T data) {
         vh.file = data;
-        vh.icon.setVisibility(isDir(data) ? View.VISIBLE : View.GONE);
+        vh.view.setActivated(mAdapter.isSelected(vh.getAdapterPosition()));
+        vh.icon.setVisibility(isDir(data) ? View.VISIBLE : View.INVISIBLE);
         vh.text.setText(getName(data));
+        vh.text2.setText(additionalInfo(data));
 
-        if (isCheckable(data)) {
+        /*if (isCheckable(data)) {
             if (mCheckedItems.contains(data)) {
                 mCheckedVisibleViewHolders.add((CheckableViewHolder) vh);
                 ((CheckableViewHolder) vh).checkbox.setChecked(true);
@@ -660,7 +683,7 @@ public abstract class AbstractFilePickerFragment<T> extends Fragment
                 mCheckedVisibleViewHolders.remove(vh);
                 ((CheckableViewHolder) vh).checkbox.setChecked(false);
             }
-        }
+        }*/
     }
 
     /**
@@ -668,11 +691,7 @@ public abstract class AbstractFilePickerFragment<T> extends Fragment
      * selected set.
      */
     public void clearSelections() {
-        for (CheckableViewHolder vh : mCheckedVisibleViewHolders) {
-            vh.checkbox.setChecked(false);
-        }
-        mCheckedVisibleViewHolders.clear();
-        mCheckedItems.clear();
+        mAdapter.clearSelected();
     }
 
 
@@ -694,6 +713,10 @@ public abstract class AbstractFilePickerFragment<T> extends Fragment
      * Currently selected items are cleared by this operation.
      */
     public void goUp() {
+        if(mAdapter.getSelectedCount() > 0) {
+            mAdapter.clearSelected();
+            return;
+        }
         goToDir(getParent(mCurrentPath));
     }
 
@@ -704,6 +727,18 @@ public abstract class AbstractFilePickerFragment<T> extends Fragment
      * @param viewHolder for the clicked view
      */
     public void onClickDir(@NonNull View view, @NonNull DirViewHolder viewHolder) {
+        if(mAdapter.getSelectedCount() > 0){
+            onLongClickDir(view, viewHolder);
+            return;
+        }
+        if(isCheckable(viewHolder.file)){
+            if(allowMultiple){
+                mAdapter.toggleSelected(viewHolder.getAdapterPosition());
+            } else {
+                mListener.onFilePicked(toUri(viewHolder.file));
+            }
+            return;
+        }
         if (isDir(viewHolder.file)) {
             goToDir(viewHolder.file);
         }
@@ -735,8 +770,7 @@ public abstract class AbstractFilePickerFragment<T> extends Fragment
      */
     public void goToDir(@NonNull T file) {
         if (!isLoading) {
-            mCheckedItems.clear();
-            mCheckedVisibleViewHolders.clear();
+            mAdapter.clearSelected();
             refresh(file);
         }
     }
@@ -749,64 +783,25 @@ public abstract class AbstractFilePickerFragment<T> extends Fragment
      * @return true if the callback consumed the long click, false otherwise.
      */
     public boolean onLongClickDir(@NonNull View view, @NonNull DirViewHolder viewHolder) {
+        mAdapter.toggleSelected(viewHolder.getAdapterPosition());
+        if (mAdapter.getSelectedCount() == 0) {
+            mCab.finish();
+            return false;
+        }
+
+        if (mCab == null) {
+            System.out.println("Creating MaterialCab");
+            mCab = createMaterialCab();
+        } else if(!mCab.isActive()) {
+            resetMaterialCab(mCab);
+        }
+        if (mCab == null) {
+            System.out.println("MaterialCab not created :(");
+            return false;
+        }
+        System.out.println("Material cab created!");
+        mCab.setTitle(getString(R.string.x_selected, mAdapter.getSelectedCount()));
         return false;
-    }
-
-    /**
-     * Called when a selectable item is clicked. This might be either a file or a directory.
-     *
-     * @param view       that was clicked. Not used in default implementation.
-     * @param viewHolder for the clicked view
-     */
-    public void onClickCheckable(@NonNull View view, @NonNull CheckableViewHolder viewHolder) {
-        if (isDir(viewHolder.file)) {
-            goToDir(viewHolder.file);
-        } else {
-            onLongClickCheckable(view, viewHolder);
-            if (singleClick) {
-                onClickOk(view);
-            }
-        }
-    }
-
-    /**
-     * Long clicking a selectable item should toggle its selected state. Note that if only a
-     * single item can be selected, then other potentially selected views on screen must be
-     * de-selected.
-     *
-     * @param view       which was long clicked. Not used in default implementation.
-     * @param viewHolder for the clicked view
-     * @return true if the callback consumed the long click, false otherwise.
-     */
-    public boolean onLongClickCheckable(@NonNull View view,
-                                        @NonNull CheckableViewHolder viewHolder) {
-        if (MODE_NEW_FILE == mode) {
-            mEditTextFileName.setText(getName(viewHolder.file));
-        }
-        onClickCheckBox(viewHolder);
-        return true;
-    }
-
-    /**
-     * Called when a selectable item's checkbox is pressed. This should toggle its selected state.
-     * Note that if only a single item can be selected, then other potentially selected views on
-     * screen must be de-selected. The text box for new filename is also cleared.
-     *
-     * @param viewHolder for the item containing the checkbox.
-     */
-    public void onClickCheckBox(@NonNull CheckableViewHolder viewHolder) {
-        if (mCheckedItems.contains(viewHolder.file)) {
-            viewHolder.checkbox.setChecked(false);
-            mCheckedItems.remove(viewHolder.file);
-            mCheckedVisibleViewHolders.remove(viewHolder);
-        } else {
-            if (!allowMultiple) {
-                clearSelections();
-            }
-            viewHolder.checkbox.setChecked(true);
-            mCheckedItems.add(viewHolder.file);
-            mCheckedVisibleViewHolders.add(viewHolder);
-        }
     }
 
     /**
@@ -844,23 +839,26 @@ public abstract class AbstractFilePickerFragment<T> extends Fragment
          */
         @Override
         public void onClick(View v) {
+            System.out.println("On click header! Next dir!");
             onClickHeader(v, this);
         }
     }
 
-    public class DirViewHolder extends RecyclerView.ViewHolder implements View.OnClickListener,
-            View.OnLongClickListener {
-
+    public class DirViewHolder extends RecyclerView.ViewHolder implements View.OnClickListener, View.OnLongClickListener {
+        public View view;
         public View icon;
         public TextView text;
+        public TextView text2;
         public T file;
 
         public DirViewHolder(View v) {
             super(v);
             v.setOnClickListener(this);
             v.setOnLongClickListener(this);
-            icon = v.findViewById(R.id.item_icon);
+            this.view = v;
+            icon = v.findViewById(android.R.id.icon);
             text = (TextView) v.findViewById(android.R.id.text1);
+            text2 = (TextView) v.findViewById(android.R.id.text2);
         }
 
         /**
@@ -884,45 +882,4 @@ public abstract class AbstractFilePickerFragment<T> extends Fragment
             return onLongClickDir(v, this);
         }
     }
-
-    public class CheckableViewHolder extends DirViewHolder {
-
-        public CheckBox checkbox;
-
-        public CheckableViewHolder(View v) {
-            super(v);
-            boolean nf = mode == MODE_NEW_FILE;
-
-            checkbox = (CheckBox) v.findViewById(R.id.checkbox);
-            checkbox.setVisibility((nf || singleClick) ? View.GONE : View.VISIBLE);
-            checkbox.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    onClickCheckBox(CheckableViewHolder.this);
-                }
-            });
-        }
-
-        /**
-         * Called when a view has been clicked.
-         *
-         * @param v The view that was clicked.
-         */
-        @Override
-        public void onClick(View v) {
-            onClickCheckable(v, this);
-        }
-
-        /**
-         * Called when a view has been clicked and held.
-         *
-         * @param v The view that was clicked and held.
-         * @return true if the callback consumed the long click, false otherwise.
-         */
-        @Override
-        public boolean onLongClick(View v) {
-            return onLongClickCheckable(v, this);
-        }
-    }
-
 }

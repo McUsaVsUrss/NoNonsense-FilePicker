@@ -7,6 +7,7 @@
   -->
 
 <resources>
+    <color name="activated_selected_light" type="color">#3e000000</color>
     <!-- 12% black in LIGHT THEME -->
     <color name="nnf_light_separator_color">#1e000000</color>
     <!-- 12% white in BLACK THEME -->

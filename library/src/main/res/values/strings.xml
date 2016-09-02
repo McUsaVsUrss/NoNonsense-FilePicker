@@ -12,4 +12,7 @@
     <string name="nnf_need_valid_filename">Please enter or select a valid filename</string>
     <string name="nnf_permission_external_write_denied">Permisson to access filesystem denied</string>
     <string name="nnf_filename">Filename</string>
+
+
+    <string name="x_selected">%1$d selected</string>
 </resources>
